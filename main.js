@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, session, desktopCapturer } = require("electron");
 const path = require("path");
 const os = require("os");
 const { spawn } = require("child_process");
@@ -16,6 +16,7 @@ app.whenReady().then(async () => {
     onConsentRequest: showConsentDialog,
   });
 
+  configureNativeCapture();
   await ensureLocalServer();
 
   mainWindow = new BrowserWindow({
@@ -113,6 +114,24 @@ async function showConsentDialog(action) {
   });
 
   return result.response === 0;
+}
+
+function configureNativeCapture() {
+  session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ["screen"],
+        thumbnailSize: { width: 0, height: 0 },
+      });
+
+      callback({
+        video: sources[0],
+        audio: "none",
+      });
+    } catch {
+      callback({});
+    }
+  });
 }
 
 async function ensureLocalServer() {

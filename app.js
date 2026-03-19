@@ -13,6 +13,7 @@ const state = {
   peerConnection: null,
   localStream: null,
   remoteStream: null,
+  isDesktopClient: false,
 };
 
 const authViewEl = document.querySelector("#auth-view");
@@ -200,6 +201,7 @@ window.addEventListener("beforeunload", () => {
 
 async function bootstrap() {
   await loadRuntimeConfig();
+  state.isDesktopClient = Boolean(window.desktopHost?.isAvailable);
   supportLoginForm.elements.login.placeholder = `Ex.: ${state.config.supportLoginHint}`;
   render();
 }
@@ -451,7 +453,9 @@ function render() {
     : "Aguardando criacao de sessao.";
 
   remoteStageLabelEl.textContent = state.authRole === "customer"
-    ? "O suporte visualiza esta tela remotamente"
+    ? state.isDesktopClient
+      ? "Captura feita pelo app desktop da empresa"
+      : "Captura feita pelo navegador"
     : "O suporte acompanha a tela do cliente";
 
   setConnectionStatus(state.authRole ? "pronto" : "offline");
