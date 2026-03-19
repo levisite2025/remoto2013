@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: novasupport-remote-desk
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /api/config
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 3000
+      - key: APP_BASE_URL
+        sync: false
+      - key: RTC_ICE_SERVERS
+        sync: false

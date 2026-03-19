@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NovaSupport Remote Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow glow-a"></div>
+  <div class="bg-glow glow-b"></div>
+
+  <main class="app-shell">
+    <section class="hero card">
+      <div class="hero-copy-block">
+        <p class="eyebrow">Suporte remoto transparente</p>
+        <h1>NovaSupport Remote Desk</h1>
+        <p class="hero-copy">
+          Sala de suporte em tempo real com PIN temporario, entrada por navegador,
+          chat tecnico-cliente e compartilhamento de tela com consentimento.
+        </p>
+      </div>
+
+      <div class="hero-side">
+        <div class="status-chip status-live">Servidor local + WebRTC</div>
+        <div class="hero-metrics">
+          <div>
+            <strong id="connection-status">offline</strong>
+            <span>estado da conexao</span>
+          </div>
+          <div>
+            <strong id="current-room-id">------</strong>
+            <span>sala ativa</span>
+          </div>
+        </div>
+        <p class="hero-note">
+          O cliente acompanha a sessao e precisa iniciar o compartilhamento da propria tela.
+          O app nao instala agentes, nao cria persistencia e nao tenta acesso oculto.
+        </p>
+      </div>
+    </section>
+
+    <section class="entry-grid">
+      <article class="card">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Tecnico</p>
+            <h2>Criar sala de suporte</h2>
+          </div>
+          <span>Passo 1</span>
+        </div>
+
+        <form id="create-room-form" class="stack">
+          <label>
+            Seu nome
+            <input type="text" name="technicianName" placeholder="Ex.: Levi - TI" required>
+          </label>
+          <label>
+            Nome do cliente
+            <input type="text" name="customerName" placeholder="Ex.: Maria Silva" required>
+          </label>
+          <label>
+            Empresa ou equipe
+            <input type="text" name="company" placeholder="Ex.: Financeiro Matriz">
+          </label>
+          <label>
+            Contato
+            <input type="text" name="contact" placeholder="Ex.: maria@empresa.com">
+          </label>
+          <div class="form-row">
+            <label>
+              Dispositivo
+              <input type="text" name="deviceId" placeholder="Ex.: PC-FIN-07" required>
+            </label>
+            <label>
+              Sistema
+              <select name="system">
+                <option>Windows</option>
+                <option>macOS</option>
+                <option>Linux</option>
+                <option>Android</option>
+                <option>iPhone/iPad</option>
+              </select>
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              Prioridade
+              <select name="priority">
+                <option>Baixa</option>
+                <option selected>Normal</option>
+                <option>Alta</option>
+                <option>Critica</option>
+              </select>
+            </label>
+            <label>
+              Tipo de sessao
+              <select name="mode">
+                <option>Visualizacao + chat</option>
+                <option>Triagem remota</option>
+                <option>Validacao com cliente</option>
+              </select>
+            </label>
+          </div>
+          <label>
+            Descricao do problema
+            <textarea name="issue" rows="4" placeholder="Explique o problema que sera atendido..." required></textarea>
+          </label>
+          <button type="submit" class="primary-btn">Criar e entrar como tecnico</button>
+        </form>
+      </article>
+
+      <article class="card">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Cliente</p>
+            <h2>Entrar na sala</h2>
+          </div>
+          <span>Passo 2</span>
+        </div>
+
+        <form id="join-room-form" class="stack">
+          <label>
+            Seu nome
+            <input type="text" name="customerJoinName" placeholder="Ex.: Maria Silva" required>
+          </label>
+          <label>
+            Codigo da sala
+            <input type="text" name="roomId" placeholder="Ex.: 123456" maxlength="6" required>
+          </label>
+          <label>
+            Observacao opcional
+            <textarea name="joinNote" rows="3" placeholder="Ex.: erro aparece ao abrir o sistema."></textarea>
+          </label>
+          <label class="checkbox-row">
+            <input type="checkbox" name="consentRequired" required>
+            <span>Confirmo que estou ciente da sessao, acompanharei o atendimento e decidirei quando compartilhar minha tela.</span>
+          </label>
+          <button type="submit" class="secondary-btn">Entrar como cliente</button>
+        </form>
+
+        <div class="divider"></div>
+
+        <div class="info-box">
+          <p class="mini-label">Fluxo esperado</p>
+          <ol class="flow-list">
+            <li>O tecnico cria a sala e envia o PIN.</li>
+            <li>O cliente entra pelo navegador com o codigo.</li>
+            <li>O cliente inicia o compartilhamento quando estiver pronto.</li>
+            <li>As mensagens e eventos ficam registrados na timeline da sala.</li>
+          </ol>
+        </div>
+      </article>
+    </section>
+
+    <section id="live-room" class="live-room hidden">
+      <section class="live-grid">
+        <article class="card live-panel">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Sala ao vivo</p>
+              <h2 id="room-title">Sessao remota</h2>
+            </div>
+            <span id="role-badge">Nao conectado</span>
+          </div>
+
+          <div class="room-summary">
+            <div class="summary-box">
+              <span>Codigo</span>
+              <strong id="summary-room-code">------</strong>
+            </div>
+            <div class="summary-box">
+              <span>Cliente</span>
+              <strong id="summary-customer">Aguardando</strong>
+            </div>
+            <div class="summary-box">
+              <span>Status</span>
+              <strong id="summary-status">Triagem</strong>
+            </div>
+            <div class="summary-box">
+              <span>Prioridade</span>
+              <strong id="summary-priority">Normal</strong>
+            </div>
+          </div>
+
+          <div class="share-stage">
+            <div class="video-stage">
+              <video id="remote-screen" autoplay playsinline></video>
+              <div id="remote-placeholder" class="video-placeholder">
+                A tela compartilhada do cliente aparecera aqui assim que a conexao WebRTC for estabelecida.
+              </div>
+            </div>
+
+            <div class="video-side">
+              <div class="local-preview-card">
+                <p class="mini-label">Preview local</p>
+                <video id="local-screen" autoplay muted playsinline></video>
+              </div>
+
+              <div class="stack compact">
+                <label class="checkbox-row">
+                  <input id="share-consent-checkbox" type="checkbox">
+                  <span>Cliente confirma que a tela pode ser compartilhada nesta sessao.</span>
+                </label>
+                <button id="start-share-btn" type="button" class="primary-btn">Compartilhar minha tela</button>
+                <button id="stop-share-btn" type="button" class="ghost-btn">Parar compartilhamento</button>
+                <button id="copy-room-link-btn" type="button" class="secondary-btn">Copiar link da sala</button>
+                <button id="close-room-btn" type="button" class="danger-btn">Encerrar sala</button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card side-panel">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Comunicacao</p>
+              <h2>Chat e auditoria</h2>
+            </div>
+            <span id="peer-state">Sem peer</span>
+          </div>
+
+          <div class="participant-grid">
+            <div class="participant-box">
+              <span>Tecnico</span>
+              <strong id="technician-presence">Aguardando</strong>
+            </div>
+            <div class="participant-box">
+              <span>Cliente</span>
+              <strong id="customer-presence">Aguardando</strong>
+            </div>
+          </div>
+
+          <div id="diagnostics-box" class="info-box">
+            <p class="mini-label">Diagnostico do cliente</p>
+            <div class="empty-inline">Entrando como cliente, este painel sera preenchido automaticamente.</div>
+          </div>
+
+          <div id="desktop-host-box" class="info-box">
+            <p class="mini-label">Host desktop</p>
+            <div id="desktop-host-status" class="empty-inline">
+              Recursos locais avancados ficam disponiveis quando o app roda em Electron.
+            </div>
+            <div id="desktop-system-info" class="diagnostics-grid hidden"></div>
+            <div id="desktop-actions" class="stack compact hidden"></div>
+          </div>
+
+          <div id="chat-log" class="chat-log">
+            <div class="empty-inline">As mensagens da sessao aparecerao aqui.</div>
+          </div>
+
+          <form id="chat-form" class="stack compact">
+            <label>
+              Mensagem
+              <textarea name="message" rows="3" placeholder="Digite uma orientacao para a sessao..." required></textarea>
+            </label>
+            <button type="submit" class="secondary-btn">Enviar mensagem</button>
+          </form>
+
+          <div class="divider"></div>
+
+          <div class="section-title tight">
+            <div>
+              <p class="eyebrow">Timeline</p>
+              <h2>Eventos da sala</h2>
+            </div>
+            <span id="timeline-total">0 evento(s)</span>
+          </div>
+          <div id="timeline-list" class="timeline-list">
+            <div class="empty-inline">A timeline compartilhada aparecera aqui.</div>
+          </div>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

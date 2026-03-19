@@ -1,0 +1,49 @@
+{
+  "name": "novasupport-remote-desk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App de suporte remoto com sinalizacao em tempo real e compartilhamento de tela no navegador.",
+  "scripts": {
+    "start": "node server.js",
+    "desktop": "electron .",
+    "build:win": "electron-builder --win nsis"
+  },
+  "main": "main.js",
+  "devDependencies": {
+    "electron": "^36.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.novasupport.remotedesk",
+    "productName": "NovaSupport Remote Desk",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "styles.css",
+      "app.js",
+      "server.js",
+      "main.js",
+      "preload.js",
+      "support-bridge.js",
+      "package.json",
+      "node_modules/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "NovaSupport-Remote-Desk-Setup-${version}.${ext}"
+    }
+  }
+}
