@@ -8,8 +8,8 @@ const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = __dirname;
 const APP_BASE_URL = normalizeBaseUrl(process.env.APP_BASE_URL || `http://127.0.0.1:${PORT}`);
 const RTC_ICE_SERVERS = parseIceServers(process.env.RTC_ICE_SERVERS);
-const SUPPORT_LOGIN = process.env.SUPPORT_LOGIN || "suporte";
-const SUPPORT_PASSWORD = process.env.SUPPORT_PASSWORD || "123456";
+const SUPPORT_LOGIN = process.env.SUPPORT_LOGIN || "novasupport";
+const SUPPORT_PASSWORD = process.env.SUPPORT_PASSWORD || "Nova#8472";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
