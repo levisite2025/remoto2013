@@ -1,18 +1,22 @@
-const { app, BrowserWindow, ipcMain, dialog, shell } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const os = require("os");
 const { spawn } = require("child_process");
+const http = require("http");
 
 const { createSupportBridge } = require("./support-bridge");
 
 const PORT = process.env.PORT || 3000;
 let mainWindow = null;
 let supportBridge = null;
+let serverProcess = null;
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   supportBridge = createSupportBridge({
     onConsentRequest: showConsentDialog,
   });
+
+  await ensureLocalServer();
 
   mainWindow = new BrowserWindow({
     width: 1480,
@@ -36,6 +40,7 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
+    stopLocalServer();
     app.quit();
   }
 });
@@ -58,6 +63,10 @@ app.on("activate", () => {
       }
     });
   }
+});
+
+app.on("before-quit", () => {
+  stopLocalServer();
 });
 
 ipcMain.handle("desktop-host:available", () => true);
@@ -104,4 +113,80 @@ async function showConsentDialog(action) {
   });
 
   return result.response === 0;
+}
+
+async function ensureLocalServer() {
+  if (await isPortResponding()) {
+    return;
+  }
+
+  serverProcess = spawn(process.execPath, [path.join(__dirname, "server.js")], {
+    cwd: __dirname,
+    env: {
+      ...process.env,
+      HOST: "127.0.0.1",
+      PORT: String(PORT),
+      APP_BASE_URL: `http://127.0.0.1:${PORT}`,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+
+  serverProcess.stdout.on("data", (data) => {
+    console.log(`[server] ${data.toString().trim()}`);
+  });
+
+  serverProcess.stderr.on("data", (data) => {
+    console.error(`[server] ${data.toString().trim()}`);
+  });
+
+  serverProcess.on("exit", (code) => {
+    if (code !== null && code !== 0) {
+      console.error(`Servidor local encerrado com codigo ${code}.`);
+    }
+    serverProcess = null;
+  });
+
+  await waitForServer();
+}
+
+function stopLocalServer() {
+  if (!serverProcess) {
+    return;
+  }
+
+  try {
+    serverProcess.kill();
+  } catch {}
+
+  serverProcess = null;
+}
+
+function isPortResponding() {
+  return new Promise((resolve) => {
+    const request = http.get(`http://127.0.0.1:${PORT}/api/config`, (response) => {
+      response.resume();
+      resolve(response.statusCode === 200);
+    });
+
+    request.on("error", () => resolve(false));
+    request.setTimeout(1000, () => {
+      request.destroy();
+      resolve(false);
+    });
+  });
+}
+
+async function waitForServer() {
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < 10000) {
+    if (await isPortResponding()) {
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  throw new Error("Nao foi possivel iniciar o servidor local do app.");
 }
