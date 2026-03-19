@@ -8,6 +8,8 @@ const HOST = process.env.HOST || "0.0.0.0";
 const ROOT = __dirname;
 const APP_BASE_URL = normalizeBaseUrl(process.env.APP_BASE_URL || `http://127.0.0.1:${PORT}`);
 const RTC_ICE_SERVERS = parseIceServers(process.env.RTC_ICE_SERVERS);
+const SUPPORT_LOGIN = process.env.SUPPORT_LOGIN || "suporte";
+const SUPPORT_PASSWORD = process.env.SUPPORT_PASSWORD || "123456";
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -52,6 +54,28 @@ async function handleApi(req, res, url) {
     const body = await readJson(req);
     const room = createRoom(body);
     sendJson(res, 201, { room: serializeRoom(room) });
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/auth/support") {
+    const body = await readJson(req);
+
+    if (
+      requiredString(body.login) === SUPPORT_LOGIN &&
+      requiredString(body.password) === SUPPORT_PASSWORD
+    ) {
+      sendJson(res, 200, {
+        ok: true,
+        role: "technician",
+        displayName: requiredString(body.displayName) || "Tecnico",
+      });
+      return;
+    }
+
+    sendJson(res, 401, {
+      error: "invalid_credentials",
+      message: "Login de suporte invalido.",
+    });
     return;
   }
 
@@ -132,6 +156,7 @@ async function handleApi(req, res, url) {
     sendJson(res, 200, {
       appBaseUrl: APP_BASE_URL,
       rtcIceServers: RTC_ICE_SERVERS,
+      supportLoginHint: SUPPORT_LOGIN,
     });
     return;
   }

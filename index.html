@@ -20,13 +20,13 @@
         <p class="eyebrow">Suporte remoto da sua empresa</p>
         <h1>NovaSupport Screen</h1>
         <p class="hero-copy">
-          Sessao simples para suporte: o tecnico cria um codigo, o cliente entra e compartilha a tela.
-          Sem chat, sem menus extras, sem complicacao.
+          Plataforma de exibicao de tela com acesso separado para suporte e cliente.
+          Cada perfil entra em sua propria tela e usa apenas o que precisa.
         </p>
       </div>
 
       <div class="hero-side">
-        <div class="status-chip">Visualizacao remota</div>
+        <div class="status-chip">Login por perfil</div>
         <div class="hero-metrics">
           <div>
             <strong id="connection-status">offline</strong>
@@ -40,34 +40,30 @@
       </div>
     </section>
 
-    <section class="entry-grid">
+    <section id="auth-view" class="auth-grid">
       <article class="card">
         <div class="section-title">
           <div>
-            <p class="eyebrow">Tecnico</p>
-            <h2>Criar atendimento</h2>
+            <p class="eyebrow">Suporte</p>
+            <h2>Login do suporte</h2>
           </div>
-          <span>Passo 1</span>
+          <span>Interno</span>
         </div>
 
-        <form id="create-room-form" class="stack">
+        <form id="support-login-form" class="stack">
           <label>
             Nome do tecnico
-            <input type="text" name="technicianName" placeholder="Ex.: Levi - Suporte" required>
+            <input type="text" name="displayName" placeholder="Ex.: Levi - Suporte" required>
           </label>
           <label>
-            Nome do cliente
-            <input type="text" name="customerName" placeholder="Ex.: Maria Silva" required>
+            Login
+            <input type="text" name="login" placeholder="Ex.: suporte" required>
           </label>
           <label>
-            Equipamento do cliente
-            <input type="text" name="deviceId" placeholder="Ex.: PC-FIN-07" required>
+            Senha
+            <input type="password" name="password" placeholder="Digite sua senha" required>
           </label>
-          <label>
-            Problema informado
-            <textarea name="issue" rows="4" placeholder="Ex.: sistema nao abre no computador do cliente." required></textarea>
-          </label>
-          <button type="submit" class="primary-btn">Criar e entrar como tecnico</button>
+          <button type="submit" class="primary-btn">Entrar como suporte</button>
         </form>
       </article>
 
@@ -75,15 +71,15 @@
         <div class="section-title">
           <div>
             <p class="eyebrow">Cliente</p>
-            <h2>Entrar com codigo</h2>
+            <h2>Entrada do cliente</h2>
           </div>
-          <span>Passo 2</span>
+          <span>Atendimento</span>
         </div>
 
-        <form id="join-room-form" class="stack">
+        <form id="client-login-form" class="stack">
           <label>
             Nome do cliente
-            <input type="text" name="customerJoinName" placeholder="Ex.: Maria Silva" required>
+            <input type="text" name="displayName" placeholder="Ex.: Maria Silva" required>
           </label>
           <label>
             Codigo da sessao
@@ -98,15 +94,41 @@
       </article>
     </section>
 
-    <section id="live-room" class="live-room hidden">
-      <section class="live-grid">
-        <article class="card stage-card">
+    <section id="support-view" class="role-view hidden">
+      <section class="dashboard-grid">
+        <article class="card">
           <div class="section-title">
             <div>
-              <p class="eyebrow">Tela remota</p>
-              <h2 id="room-title">Sessao</h2>
+              <p class="eyebrow">Painel do suporte</p>
+              <h2>Criar novo atendimento</h2>
             </div>
-            <span id="role-badge">Nao conectado</span>
+            <span id="support-user-badge">Suporte</span>
+          </div>
+
+          <form id="create-room-form" class="stack">
+            <label>
+              Nome do cliente
+              <input type="text" name="customerName" placeholder="Ex.: Maria Silva" required>
+            </label>
+            <label>
+              Equipamento do cliente
+              <input type="text" name="deviceId" placeholder="Ex.: PC-FIN-07" required>
+            </label>
+            <label>
+              Problema informado
+              <textarea name="issue" rows="4" placeholder="Ex.: sistema nao abre no computador do cliente." required></textarea>
+            </label>
+            <button type="submit" class="primary-btn">Criar sessao</button>
+          </form>
+        </article>
+
+        <article class="card">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Sessao ativa</p>
+              <h2 id="support-room-title">Aguardando</h2>
+            </div>
+            <span id="peer-state">Sem conexao</span>
           </div>
 
           <div class="summary-row">
@@ -124,26 +146,9 @@
             </div>
           </div>
 
-          <div class="video-stage">
-            <video id="remote-screen" autoplay playsinline></video>
-            <div id="remote-placeholder" class="video-placeholder">
-              A tela do cliente aparecera aqui quando o compartilhamento for iniciado.
-            </div>
-          </div>
-        </article>
-
-        <article class="card control-card">
-          <div class="section-title">
-            <div>
-              <p class="eyebrow">Controle</p>
-              <h2>Sessao ativa</h2>
-            </div>
-            <span id="peer-state">Sem conexao</span>
-          </div>
-
           <div class="stack compact">
             <div class="info-box">
-              <p class="mini-label">Link de entrada</p>
+              <p class="mini-label">Link da sessao</p>
               <div id="join-link" class="code-box">Crie uma sessao para gerar o link.</div>
             </div>
 
@@ -151,21 +156,6 @@
               <p class="mini-label">Status</p>
               <div id="session-status" class="status-text">Aguardando criacao de sessao.</div>
             </div>
-
-            <div class="local-preview-card">
-              <p class="mini-label">Preview local</p>
-              <video id="local-screen" autoplay muted playsinline></video>
-            </div>
-
-            <label class="checkbox-row">
-              <input id="share-consent-checkbox" type="checkbox">
-              <span>Cliente confirma que autoriza a exibicao da tela durante o atendimento.</span>
-            </label>
-
-            <button id="start-share-btn" type="button" class="primary-btn">Compartilhar minha tela</button>
-            <button id="stop-share-btn" type="button" class="ghost-btn">Parar compartilhamento</button>
-            <button id="copy-room-link-btn" type="button" class="secondary-btn">Copiar link</button>
-            <button id="close-room-btn" type="button" class="danger-btn">Encerrar sessao</button>
 
             <div class="participant-grid">
               <div class="participant-box">
@@ -176,6 +166,70 @@
                 <span>Cliente</span>
                 <strong id="customer-presence">Aguardando</strong>
               </div>
+            </div>
+
+            <div class="inline-actions">
+              <button id="copy-room-link-btn" type="button" class="secondary-btn">Copiar link</button>
+              <button id="close-room-btn" type="button" class="danger-btn">Encerrar sessao</button>
+              <button id="logout-support-btn" type="button" class="ghost-btn">Sair</button>
+            </div>
+          </div>
+        </article>
+      </section>
+    </section>
+
+    <section id="client-view" class="role-view hidden">
+      <section class="dashboard-grid client-grid">
+        <article class="card">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Area do cliente</p>
+              <h2 id="client-room-title">Sessao</h2>
+            </div>
+            <span id="client-user-badge">Cliente</span>
+          </div>
+
+          <div class="stack compact">
+            <div class="summary-row">
+              <div class="summary-box">
+                <span>Codigo</span>
+                <strong id="client-room-code">------</strong>
+              </div>
+              <div class="summary-box">
+                <span>Status</span>
+                <strong id="client-room-status">Aguardando</strong>
+              </div>
+            </div>
+
+            <label class="checkbox-row">
+              <input id="share-consent-checkbox" type="checkbox">
+              <span>Autorizo a exibicao da minha tela durante este atendimento.</span>
+            </label>
+
+            <button id="start-share-btn" type="button" class="primary-btn">Compartilhar minha tela</button>
+            <button id="stop-share-btn" type="button" class="ghost-btn">Parar compartilhamento</button>
+            <button id="logout-client-btn" type="button" class="ghost-btn">Sair</button>
+
+            <div class="local-preview-card">
+              <p class="mini-label">Minha tela</p>
+              <video id="local-screen" autoplay muted playsinline></video>
+            </div>
+          </div>
+        </article>
+
+        <article class="card stage-card">
+          <div class="section-title">
+            <div>
+              <p class="eyebrow">Exibicao</p>
+              <h2>Tela remota</h2>
+            </div>
+            <span id="remote-stage-label">Somente suporte visualiza</span>
+          </div>
+
+          <div class="video-stage">
+            <video id="remote-screen" autoplay playsinline></video>
+            <div id="remote-placeholder" class="video-placeholder">
+              O tecnico visualiza a tela remotamente quando o compartilhamento for iniciado.
             </div>
           </div>
         </article>

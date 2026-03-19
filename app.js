@@ -2,10 +2,11 @@ const state = {
   config: {
     appBaseUrl: window.location.origin,
     rtcIceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    supportLoginHint: "suporte",
   },
-  room: null,
-  role: null,
+  authRole: null,
   displayName: "",
+  room: null,
   pollCursor: 0,
   pollTimer: null,
   pollBusy: false,
@@ -14,13 +15,20 @@ const state = {
   remoteStream: null,
 };
 
+const authViewEl = document.querySelector("#auth-view");
+const supportViewEl = document.querySelector("#support-view");
+const clientViewEl = document.querySelector("#client-view");
+const supportLoginForm = document.querySelector("#support-login-form");
+const clientLoginForm = document.querySelector("#client-login-form");
 const createRoomForm = document.querySelector("#create-room-form");
-const joinRoomForm = document.querySelector("#join-room-form");
-const liveRoomEl = document.querySelector("#live-room");
-const roomTitleEl = document.querySelector("#room-title");
-const roleBadgeEl = document.querySelector("#role-badge");
+const logoutSupportBtn = document.querySelector("#logout-support-btn");
+const logoutClientBtn = document.querySelector("#logout-client-btn");
 const currentRoomIdEl = document.querySelector("#current-room-id");
 const connectionStatusEl = document.querySelector("#connection-status");
+const supportUserBadgeEl = document.querySelector("#support-user-badge");
+const clientUserBadgeEl = document.querySelector("#client-user-badge");
+const supportRoomTitleEl = document.querySelector("#support-room-title");
+const clientRoomTitleEl = document.querySelector("#client-room-title");
 const summaryRoomCodeEl = document.querySelector("#summary-room-code");
 const summaryCustomerEl = document.querySelector("#summary-customer");
 const summaryDeviceEl = document.querySelector("#summary-device");
@@ -28,7 +36,10 @@ const joinLinkEl = document.querySelector("#join-link");
 const sessionStatusEl = document.querySelector("#session-status");
 const technicianPresenceEl = document.querySelector("#technician-presence");
 const customerPresenceEl = document.querySelector("#customer-presence");
+const clientRoomCodeEl = document.querySelector("#client-room-code");
+const clientRoomStatusEl = document.querySelector("#client-room-status");
 const peerStateEl = document.querySelector("#peer-state");
+const remoteStageLabelEl = document.querySelector("#remote-stage-label");
 const remoteScreenEl = document.querySelector("#remote-screen");
 const remotePlaceholderEl = document.querySelector("#remote-placeholder");
 const localScreenEl = document.querySelector("#local-screen");
@@ -40,14 +51,69 @@ const closeRoomBtn = document.querySelector("#close-room-btn");
 
 bootstrap().catch(failWith);
 
+supportLoginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const formData = new FormData(supportLoginForm);
+
+  try {
+    const result = await api("/api/auth/support", {
+      method: "POST",
+      body: {
+        displayName: requiredString(formData.get("displayName")),
+        login: requiredString(formData.get("login")),
+        password: requiredString(formData.get("password")),
+      },
+    });
+
+    state.authRole = "technician";
+    state.displayName = result.displayName || requiredString(formData.get("displayName"));
+    supportLoginForm.reset();
+    render();
+  } catch (error) {
+    failWith(error);
+  }
+});
+
+clientLoginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const formData = new FormData(clientLoginForm);
+  const roomId = requiredString(formData.get("roomId")).toUpperCase();
+  const displayName = requiredString(formData.get("displayName"));
+
+  try {
+    await api(`/api/rooms/${roomId}/join`, {
+      method: "POST",
+      body: {
+        role: "customer",
+        name: displayName,
+        diagnostics: collectDiagnostics(),
+      },
+    });
+
+    state.authRole = "customer";
+    state.displayName = displayName;
+    state.pollCursor = 0;
+    clientLoginForm.reset();
+    await refreshRoom(roomId);
+    startPolling();
+    render();
+  } catch (error) {
+    failWith(error);
+  }
+});
+
 createRoomForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+
+  if (state.authRole !== "technician") {
+    return;
+  }
 
   const formData = new FormData(createRoomForm);
 
   try {
-    setConnectionStatus("criando");
-
     const result = await api("/api/rooms", {
       method: "POST",
       body: {
@@ -57,34 +123,26 @@ createRoomForm.addEventListener("submit", async (event) => {
       },
     });
 
-    await enterRoom(result.room.id, "technician", requiredString(formData.get("technicianName")));
+    await api(`/api/rooms/${result.room.id}/join`, {
+      method: "POST",
+      body: {
+        role: "technician",
+        name: state.displayName,
+      },
+    });
+
     createRoomForm.reset();
-  } catch (error) {
-    failWith(error);
-  }
-});
-
-joinRoomForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-
-  const formData = new FormData(joinRoomForm);
-
-  try {
-    await enterRoom(
-      requiredString(formData.get("roomId")).toUpperCase(),
-      "customer",
-      requiredString(formData.get("customerJoinName"))
-    );
-    joinRoomForm.reset();
-    shareConsentCheckbox.checked = false;
+    state.pollCursor = 0;
+    await refreshRoom(result.room.id);
+    startPolling();
+    render();
   } catch (error) {
     failWith(error);
   }
 });
 
 startShareBtn.addEventListener("click", async () => {
-  if (state.role !== "customer") {
-    window.alert("Somente o cliente pode iniciar o compartilhamento da propria tela.");
+  if (state.authRole !== "customer") {
     return;
   }
 
@@ -109,7 +167,7 @@ stopShareBtn.addEventListener("click", async () => {
 });
 
 copyRoomLinkBtn.addEventListener("click", async () => {
-  if (!state.room) {
+  if (!state.room?.joinUrl) {
     return;
   }
 
@@ -117,19 +175,22 @@ copyRoomLinkBtn.addEventListener("click", async () => {
 });
 
 closeRoomBtn.addEventListener("click", async () => {
-  if (!state.room || state.role !== "technician") {
+  if (!state.room || state.authRole !== "technician") {
     return;
   }
 
   try {
     await api(`/api/rooms/${state.room.id}/close`, { method: "POST" });
-    await stopScreenShare(false);
+    clearRemoteScreen();
     closePeerConnection();
     await refreshRoom();
   } catch (error) {
     failWith(error);
   }
 });
+
+logoutSupportBtn.addEventListener("click", () => logout());
+logoutClientBtn.addEventListener("click", () => logout());
 
 window.addEventListener("beforeunload", () => {
   stopPolling();
@@ -139,36 +200,22 @@ window.addEventListener("beforeunload", () => {
 
 async function bootstrap() {
   await loadRuntimeConfig();
-
-  const params = new URLSearchParams(window.location.search);
-  const roomId = params.get("room");
-
-  if (roomId) {
-    joinRoomForm.elements.roomId.value = roomId;
-  }
-
+  supportLoginForm.elements.login.placeholder = `Ex.: ${state.config.supportLoginHint}`;
   render();
 }
 
-async function enterRoom(roomId, role, name) {
-  await api(`/api/rooms/${roomId}/join`, {
-    method: "POST",
-    body: {
-      role,
-      name,
-      diagnostics: role === "customer" ? collectDiagnostics() : null,
-    },
-  });
-
-  state.role = role;
-  state.displayName = name;
+function logout() {
+  stopPolling();
+  closePeerConnection();
+  stopLocalTracks();
+  clearRemoteScreen();
+  localScreenEl.srcObject = null;
+  shareConsentCheckbox.checked = false;
+  state.authRole = null;
+  state.displayName = "";
+  state.room = null;
   state.pollCursor = 0;
-
-  liveRoomEl.classList.remove("hidden");
-  liveRoomEl.scrollIntoView({ behavior: "smooth", block: "start" });
-
-  await refreshRoom(roomId);
-  startPolling();
+  render();
 }
 
 function startPolling() {
@@ -187,7 +234,7 @@ function stopPolling() {
 }
 
 async function tick() {
-  if (!state.room || !state.role || state.pollBusy) {
+  if (!state.room || !state.authRole || state.pollBusy) {
     return;
   }
 
@@ -195,7 +242,7 @@ async function tick() {
 
   try {
     const [eventsResult] = await Promise.all([
-      api(`/api/rooms/${state.room.id}/events?role=${state.role}&cursor=${state.pollCursor}`),
+      api(`/api/rooms/${state.room.id}/events?role=${state.authRole}&cursor=${state.pollCursor}`),
       refreshRoom(),
     ]);
 
@@ -228,12 +275,12 @@ async function refreshRoom(roomId = state.room?.id) {
 async function handleSignalEvent(event) {
   switch (event.type) {
     case "offer":
-      if (state.role === "technician") {
+      if (state.authRole === "technician") {
         await handleOffer(event.payload);
       }
       break;
     case "answer":
-      if (state.role === "customer" && state.peerConnection) {
+      if (state.authRole === "customer" && state.peerConnection) {
         await state.peerConnection.setRemoteDescription(new RTCSessionDescription(event.payload));
       }
       break;
@@ -257,7 +304,6 @@ async function handleOffer(offer) {
   await peer.setRemoteDescription(new RTCSessionDescription(offer));
   const answer = await peer.createAnswer();
   await peer.setLocalDescription(answer);
-
   await sendSignal("answer", peer.localDescription, "customer");
 }
 
@@ -267,7 +313,7 @@ function createPeerConnection(targetRole) {
   });
 
   peer.onicecandidate = async (event) => {
-    if (!event.candidate || !state.room || !state.role) {
+    if (!event.candidate || !state.room || !state.authRole) {
       return;
     }
 
@@ -318,24 +364,18 @@ async function startScreenShare() {
   const offer = await peer.createOffer();
   await peer.setLocalDescription(offer);
   await sendSignal("offer", peer.localDescription, "technician");
-
-  sessionStatusEl.textContent = "Tela compartilhada em andamento.";
 }
 
 async function stopScreenShare(notifyPeer) {
-  if (notifyPeer && state.room && state.role === "customer") {
+  if (notifyPeer && state.room && state.authRole === "customer") {
     await sendSignal("share-stopped", {}, "technician");
   }
 
   stopLocalTracks();
   localScreenEl.srcObject = null;
 
-  if (state.role === "customer") {
+  if (state.authRole === "customer") {
     closePeerConnection();
-  }
-
-  if (state.room) {
-    sessionStatusEl.textContent = "Sessao ativa sem compartilhamento.";
   }
 }
 
@@ -366,14 +406,14 @@ function clearRemoteScreen() {
 }
 
 async function sendSignal(type, payload, targetRole) {
-  if (!state.room || !state.role) {
+  if (!state.room || !state.authRole) {
     return;
   }
 
   await api(`/api/rooms/${state.room.id}/signal`, {
     method: "POST",
     body: {
-      fromRole: state.role,
+      fromRole: state.authRole,
       targetRole,
       type,
       payload,
@@ -382,41 +422,52 @@ async function sendSignal(type, payload, targetRole) {
 }
 
 function render() {
+  authViewEl.classList.toggle("hidden", Boolean(state.authRole));
+  supportViewEl.classList.toggle("hidden", state.authRole !== "technician");
+  clientViewEl.classList.toggle("hidden", state.authRole !== "customer");
+
+  currentRoomIdEl.textContent = state.room?.id || "------";
+  supportUserBadgeEl.textContent = state.displayName || "Suporte";
+  clientUserBadgeEl.textContent = state.displayName || "Cliente";
+
   const room = state.room;
-
-  currentRoomIdEl.textContent = room?.id || "------";
-  roomTitleEl.textContent = room ? `Sessao de ${room.customerName}` : "Sessao";
-  roleBadgeEl.textContent = state.role === "customer" ? "Cliente" : state.role === "technician" ? "Tecnico" : "Nao conectado";
-
+  supportRoomTitleEl.textContent = room ? `Sessao de ${room.customerName}` : "Aguardando";
+  clientRoomTitleEl.textContent = room ? `Sessao ${room.id}` : "Sessao";
   summaryRoomCodeEl.textContent = room?.id || "------";
   summaryCustomerEl.textContent = room?.customerName || "Aguardando";
   summaryDeviceEl.textContent = room?.deviceId || "Aguardando";
   joinLinkEl.textContent = room?.joinUrl || "Crie uma sessao para gerar o link.";
-
   technicianPresenceEl.textContent = room?.participants?.technician?.name || "Aguardando";
   customerPresenceEl.textContent = room?.participants?.customer?.name || "Aguardando";
+  clientRoomCodeEl.textContent = room?.id || "------";
+  clientRoomStatusEl.textContent = room?.status || "Aguardando";
 
   sessionStatusEl.textContent = room
     ? room.status === "Encerrada"
       ? "Sessao encerrada."
       : room.participants?.customer
-        ? "Cliente conectado. Pronto para compartilhar a tela."
+        ? "Cliente conectado. Aguardando compartilhamento."
         : "Aguardando entrada do cliente."
     : "Aguardando criacao de sessao.";
 
+  remoteStageLabelEl.textContent = state.authRole === "customer"
+    ? "O suporte visualiza esta tela remotamente"
+    : "O suporte acompanha a tela do cliente";
+
+  setConnectionStatus(state.authRole ? "pronto" : "offline");
   renderRoleControls();
 }
 
 function renderRoleControls() {
-  const isCustomer = state.role === "customer";
-  const isTechnician = state.role === "technician";
   const closed = state.room?.status === "Encerrada";
+  const isCustomer = state.authRole === "customer";
+  const isTechnician = state.authRole === "technician";
 
-  shareConsentCheckbox.disabled = !isCustomer || closed;
   startShareBtn.disabled = !isCustomer || closed;
   stopShareBtn.disabled = !isCustomer || closed;
-  closeRoomBtn.disabled = !isTechnician || closed;
-  copyRoomLinkBtn.disabled = !state.room;
+  shareConsentCheckbox.disabled = !isCustomer || closed;
+  copyRoomLinkBtn.disabled = !isTechnician || !state.room;
+  closeRoomBtn.disabled = !isTechnician || !state.room || closed;
 }
 
 function setConnectionStatus(value) {
@@ -442,6 +493,7 @@ async function loadRuntimeConfig() {
       rtcIceServers: Array.isArray(config.rtcIceServers) && config.rtcIceServers.length
         ? config.rtcIceServers
         : [{ urls: "stun:stun.l.google.com:19302" }],
+      supportLoginHint: config.supportLoginHint || "suporte",
     };
   } catch (error) {
     console.error(error);

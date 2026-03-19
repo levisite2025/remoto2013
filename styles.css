@@ -64,7 +64,7 @@ body {
 .app-shell {
   position: relative;
   z-index: 1;
-  width: min(1220px, calc(100% - 28px));
+  width: min(1240px, calc(100% - 28px));
   margin: 24px auto 36px;
   display: grid;
   gap: 18px;
@@ -80,11 +80,12 @@ body {
 }
 
 .hero,
-.entry-grid,
-.live-grid,
+.auth-grid,
+.dashboard-grid,
 .summary-row,
 .participant-grid,
-.hero-metrics {
+.hero-metrics,
+.inline-actions {
   display: grid;
   gap: 18px;
 }
@@ -93,15 +94,23 @@ body {
   grid-template-columns: 1.55fr 0.9fr;
 }
 
-.entry-grid,
-.live-grid {
+.auth-grid,
+.dashboard-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.client-grid {
+  grid-template-columns: 0.85fr 1.15fr;
 }
 
 .summary-row,
 .participant-grid,
 .hero-metrics {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.inline-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .eyebrow,
@@ -285,7 +294,7 @@ button:disabled {
   accent-color: #22c55e;
 }
 
-.live-room.hidden,
+.role-view.hidden,
 .hidden {
   display: none;
 }
@@ -341,11 +350,13 @@ button:disabled {
 
 @media (max-width: 1080px) {
   .hero,
-  .entry-grid,
-  .live-grid,
+  .auth-grid,
+  .dashboard-grid,
+  .client-grid,
   .summary-row,
   .participant-grid,
-  .hero-metrics {
+  .hero-metrics,
+  .inline-actions {
     grid-template-columns: 1fr;
   }
 
@@ -356,7 +367,7 @@ button:disabled {
 
 @media (max-width: 720px) {
   .app-shell {
-    width: min(100% - 16px, 1220px);
+    width: min(100% - 16px, 1240px);
     margin: 16px auto 24px;
   }
 
